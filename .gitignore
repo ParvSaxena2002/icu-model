@@ -2,3 +2,20 @@ data/raw/*.csv
 !data/raw/sample_vitals.csv
 data/processed/*
 *.zip
+# Python
+_pycache_/
+*.pyc
+env/
+venv/
+
+# Data and models (do not push raw data/model files if they are large)
+data/raw/
+data/processed/
+models/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
