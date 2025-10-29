@@ -1,0 +1,36 @@
+# Integration Guide — AI ICU Vitals Model (v1.0)
+
+## Purpose
+This document explains how to run the inference API and the alarm, the input schema, example requests/responses, and notes for integration teams.
+
+---
+
+## Files included
+- `models/vitals_model_tuned.joblib` — trained model artifact (joblib dict: {"model", "features"})
+- `inference/` — inference API (predict.py, app.py) and `requirements.txt`
+- `alarm_monitor.py` — local color-coded alarm simulation + desktop notifications
+- `sample_data/vitals_combined_labeled.csv` — sample test data
+- `metadata.json` — model metadata
+- `README.txt` — quick start notes
+
+---
+
+## Input schema (JSON)
+POST `/predict` expects JSON with these fields (all floats):
+
+```json
+{
+  "heart_rate": 85.0,
+  "bp_sys": 120.0,
+  "bp_dia": 80.0,
+  "spo2": 98.0,
+  "temp": 36.7,
+  "resp_rate": 18.0
+}
+v{
+  "model_version": "vitals_model_tuned.joblib",
+  "prediction": {
+    "label": 0,
+    "score": 0.12
+  }
+}
