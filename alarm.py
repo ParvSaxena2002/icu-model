@@ -8,7 +8,7 @@ import winsound  # for beep sound on Windows
 model = joblib.load("models/vitals_model.joblib")
 winsound.Beep(1000, 1000)
 # Load the dataset
-df = pd.read_csv("processed/vitals_combined_labeled.csv")
+df = pd.read_csv("deployment_package/sample_data/vitals_combined_labeled.csv")
 
 # Select numeric columns (same as training)
 X = df.select_dtypes(include="number").drop(columns=["label"], errors="ignore")
