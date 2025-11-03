@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 import joblib, os
 
-df = pd.read_csv("data/processed/vitals_combined_labeled.csv")
+df = pd.read_csv("deployment_package/sample_data/vitals_combined_labeled.csv")
 
 # select only numeric columns for training
 X = df.select_dtypes(include="number").drop(columns=["label"], errors="ignore")
