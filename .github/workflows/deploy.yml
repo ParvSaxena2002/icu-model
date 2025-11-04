@@ -18,7 +18,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Deploy to EC2 (Ubuntu)
+      - name: Deploy to EC2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -31,16 +31,19 @@ jobs:
             sudo apt update -y
             sudo apt install -y git python3-pip python3-venv
 
-            cd /home/ubuntu
             REPO_NAME=$(basename "${{ github.repository }}")
 
             echo "Cleaning up any old repository..."
-            sudo rm -rf "$REPO_NAME"
+            rm -rf "$REPO_NAME"
 
             echo "Adding GitHub to known hosts..."
             mkdir -p ~/.ssh
             touch ~/.ssh/known_hosts
             ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+            echo "Starting SSH agent and adding deploy key..."
+            eval "$(ssh-agent -s)"
+            ssh-add ~/.ssh/github_deploy_key
 
             echo "Cloning fresh repository via SSH..."
             git clone git@github.com:${{ github.repository }}.git
