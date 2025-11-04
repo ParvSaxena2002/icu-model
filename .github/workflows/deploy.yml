@@ -39,16 +39,17 @@ jobs:
             ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
 
             # Clone repo via SSH
-            if [ ! -d "/home/ubuntu/$REPO_NAME" ]; then
-              cd /home/ubuntu
-              echo "Cloning repository via SSH..."
-              git clone git@github.com:${{ github.repository }}.git
-              cd $REPO_NAME
-            else
-              cd /home/ubuntu/$REPO_NAME
-              echo "Pulling latest changes..."
-              git pull origin main
-            fi
+          if [ ! -d "$REPO_NAME/.git" ]; then
+            echo "Cloning repository via SSH..."
+            rm -rf "$REPO_NAME"
+            git clone git@github.com:${{ github.repository }}.git
+            cd "$REPO_NAME"
+          else
+            cd "$REPO_NAME"
+            echo "Pulling latest changes..."
+            git fetch origin main
+            git reset --hard origin/main
+          fi
 
             echo "Setting up Python virtual environment..."
             python3 -m venv venv
