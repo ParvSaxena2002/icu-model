@@ -76,12 +76,18 @@ resource "aws_instance" "app_server" {
   instance_type          = var.instance_type
   key_name               = aws_key_pair.icu_key.key_name
   vpc_security_group_ids = [aws_security_group.app_sg.id]
+  user_data              = file("${path.module}/user_data.sh")
 
-  user_data = file("${path.module}/user_data.sh")
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
   tags = {
     Name = "AI-ICU-Monitoring"
   }
+
+  depends_on = [
+    aws_iam_instance_profile.ec2_profile,
+    aws_iam_role_policy_attachment.attach_s3_policy
+  ]
 }
 
 # Elastic IP

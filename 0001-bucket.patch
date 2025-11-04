@@ -1,0 +1,51 @@
+From 56438c0d6700d98431a4ac94e9a88f187feac615 Mon Sep 17 00:00:00 2001
+From: Aman <amanpal8149@gmail.com>
+Date: Tue, 4 Nov 2025 16:40:52 +0530
+Subject: [PATCH] bucket
+
+---
+ alarm.py | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/alarm.py b/alarm.py
+index ccbe2be..6138aeb 100644
+--- a/alarm.py
++++ b/alarm.py
+@@ -53,7 +53,7 @@ def wait_for_ack():
+     input("⚕️ Press ENTER to stop the alarm and monitoring...\n")
+     alert_triggered = False
+     stop_program = True
+-    print("✅ Alarm acknowledged. Monitoring stopped.")
++    print(" Alarm acknowledged. Monitoring stopped.")
+ 
+ # Start input listener
+ threading.Thread(target=wait_for_ack, daemon=True).start()
+@@ -67,21 +67,21 @@ for index, row in X.iterrows():
+ 
+     reading = row.values.reshape(1, -1)
+     prediction = model.predict(reading)[0]
+-    print(f"🔍 Row {index}: Prediction = {prediction}")
++    print(f"Row {index}: Prediction = {prediction}")
+ 
+     # 🚨 For testing — Force alarm on first row
+     if index == 0:
+         prediction = 1
+ 
+     if prediction == 1:
+-        print(f"🚨 ALERT: Abnormal vitals detected at row {index}")
++        print(f"ALERT: Abnormal vitals detected at row {index}")
+         alert_triggered = True
+         while alert_triggered and not stop_program:
+             winsound.Beep(1000, 700)  # frequency, duration(ms)
+             time.sleep(0.3)
+     else:
+-        print(f"🩶 Row {index}: Normal vitals.")
++        print(f"Row {index}: Normal vitals.")
+         time.sleep(1)
+ 
+ 
+-print("🛑 Monitoring stopped.")
++print(" Monitoring stopped.")
+-- 
+2.51.0.windows.2
+
