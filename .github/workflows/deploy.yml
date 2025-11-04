@@ -39,17 +39,23 @@ jobs:
             ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
 
             # Clone repo via SSH
-          if [ ! -d "$REPO_NAME/.git" ]; then
-            echo "Cloning repository via SSH..."
-            rm -rf "$REPO_NAME"
-            git clone git@github.com:${{ github.repository }}.git
-            cd "$REPO_NAME"
-          else
-            cd "$REPO_NAME"
-            echo "Pulling latest changes..."
-            git fetch origin main
-            git reset --hard origin/main
-          fi
+              if [ -d "$REPO_NAME/.git" ]; then
+                echo "Repository exists — pulling latest changes..."
+                cd "$REPO_NAME"
+                git fetch origin main
+                git reset --hard origin/main
+              else
+                echo "Directory exists but is not a git repo — removing it..."
+                sudo rm -rf "$REPO_NAME"
+                echo "Cloning fresh repository..."
+                git clone git@github.com:${{ github.repository }}.git
+                cd "$REPO_NAME"
+              fi
+            else
+              echo "Cloning repository via SSH..."
+              git clone git@github.com:${{ github.repository }}.git
+              cd "$REPO_NAME"
+            fi
 
             echo "Setting up Python virtual environment..."
             python3 -m venv venv
