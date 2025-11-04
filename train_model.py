@@ -1,59 +1,70 @@
+"""
+Optimized ICU Vitals Model Trainer (path independent + error proof)
+"""
+
+import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 import joblib
-import os
 
-# === File paths ===
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # project root
-csv_path = os.path.join(BASE_DIR, "deployment_package", "sample_data", "summary_features_added_data.csv")
-model_path = os.path.join(BASE_DIR, "models", "vitals_model.joblib")
+# === Dynamic Paths ===
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.normpath(os.path.join(BASE_DIR, "deployment_package/sample_data/summary_features_added_data.csv"))
+MODEL_PATH = os.path.normpath(os.path.join(BASE_DIR, "models/vitals_model_tuned.joblib"))
+
+print(f"[INFO] Loading dataset from: {CSV_PATH}")
+if not os.path.exists(CSV_PATH):
+    raise FileNotFoundError(f"Dataset not found at: {CSV_PATH}")
 
 # === Load dataset ===
-if not os.path.exists(csv_path):
-    raise FileNotFoundError(f"❌ Dataset not found: {csv_path}")
+df = pd.read_csv(CSV_PATH)
+print(f"[INFO] Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 
-df = pd.read_csv(csv_path)
-print(f"✅ Loaded dataset with shape: {df.shape}")
+# === Standardize column names ===
+df.columns = [c.strip().replace(" ", "_").lower() for c in df.columns]
 
-# === Encode categorical columns ===
-if "Gender" in df.columns:
-    df["Gender"] = df["Gender"].map({"M": 0, "F": 1})
-    print("Converted Gender to numeric values.")
-if "Risk Category" in df.columns:
-    df["Risk Category"] = pd.factorize(df["Risk Category"])[0]
-    print("Converted Risk Category to numeric values.")
+# === Expected vitals ===
+vital_features = ["hr_mean", "sbp_mean", "dbp_mean", "spo2_mean"]
 
-# === Define features and target ===
-features = [
-    "HR_mean", "RR_mean", "SBP_mean", "DBP_mean",
-    "MBP_mean", "SPO2_mean", "Age", "BMI", "Gender"
-]
+missing = [f for f in vital_features if f not in df.columns]
+if missing:
+    raise KeyError(f"Missing vital columns in dataset: {missing}")
 
-# Detect target column
-possible_targets = ["Risk Category", "label", "Outcome", "Alert"]
-target = next((col for col in possible_targets if col in df.columns), None)
+# === Auto-create label if not present ===
+if "label" not in df.columns:
+    print("[WARN] 'label' not found — creating dummy label: (hr_mean > 100)")
+    df["label"] = (df["hr_mean"] > 100).astype(int)
 
-if not target:
-    raise ValueError("❌ No valid target column found in CSV.")
+# === Prepare data ===
+X = df[vital_features]
+y = df["label"]
 
-df = df.dropna(subset=features + [target])
-X = df[features]
-y = df[target]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
-# === Split & train ===
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-model = RandomForestClassifier(n_estimators=200, random_state=42)
+# === Train model ===
+print("[INFO] Training RandomForest model...")
+model = RandomForestClassifier(
+    n_estimators=200,
+    random_state=42,
+    class_weight="balanced",
+    n_jobs=-1
+)
 model.fit(X_train, y_train)
 
 # === Evaluate ===
-preds = model.predict(X_test)
-print(f"✅ Training complete. Accuracy: {accuracy_score(y_test, preds):.2f}")
-print(classification_report(y_test, preds))
+y_pred = model.predict(X_test)
+acc = accuracy_score(y_test, y_pred)
+print(f"\n✅ Accuracy: {acc:.3f}")
+print(classification_report(y_test, y_pred))
 
-# === Save model ===
-os.makedirs(os.path.dirname(model_path), exist_ok=True)
-joblib.dump(model, model_path)
-print(f"💾 Model saved at: {model_path}")
+# === Save model with features ===
+os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+artifact = {"model": model, "features": vital_features}
+joblib.dump(artifact, MODEL_PATH)
+
+print(f"\n✅ Model saved: {MODEL_PATH}")
+print(f"✅ Features used: {vital_features}")
