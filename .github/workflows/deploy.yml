@@ -24,8 +24,7 @@ jobs:
         run: |
           echo "Connecting to EC2 and deploying latest version..."
 
-          # REMOVE the single quotes around EOF
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_PUBLIC_DNS }} << EOF
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_PUBLIC_DNS }} << 'EOF'
             set -e
 
             echo "Updating system and installing dependencies..."
