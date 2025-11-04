@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score
@@ -6,8 +6,9 @@ import joblib
 import os
 
 # === File paths ===
-csv_path = r"C:\Users\Dell\Downloads\icu-model-main\deployment_package\sample_data\summary_features_added_data.csv"
-model_path = r"C:\Users\Dell\Downloads\icu-model-main\models\vitals_model.joblib"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # project root
+csv_path = os.path.join(BASE_DIR, "deployment_package", "sample_data", "summary_features_added_data.csv")
+model_path = os.path.join(BASE_DIR, "models", "vitals_model.joblib")
 
 # === Load dataset ===
 if not os.path.exists(csv_path):
