@@ -6,6 +6,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
   }
 }
 
@@ -13,10 +21,24 @@ provider "aws" {
   region = var.aws_region
 }
 
-# SSH Key
+
+# Save private key locally
+resource "local_file" "private_key_pem" {
+  content         = tls_private_key.icu_key.private_key_pem
+  filename        = "${path.module}/icu_model.pem"
+  file_permission = "0400"
+}
+
+# Generate a new SSH key locally
+resource "tls_private_key" "icu_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+#Create AWS key pair using the generated public key
 resource "aws_key_pair" "icu_key" {
   key_name   = "icu-model-key"
-  public_key = file(var.ssh_public_key_path)
+  public_key = tls_private_key.icu_key.public_key_openssh
 }
 
 #Security Group — Allow HTTP & SSH
@@ -50,7 +72,7 @@ resource "aws_security_group" "app_sg" {
 
 # EC2 Instance
 resource "aws_instance" "app_server" {
-  ami                    = "ami-02b8269d5e85954ef"
+  ami                    = "ami-0f5fcdfbd140e4ab7"
   instance_type          = var.instance_type
   key_name               = aws_key_pair.icu_key.key_name
   vpc_security_group_ids = [aws_security_group.app_sg.id]
@@ -72,7 +94,4 @@ resource "aws_eip" "app_eip" {
   }
 }
 
-output "static_ip" {
-  description = "Elastic (static) IP address"
-  value       = aws_eip.app_eip.public_ip
-}
+
