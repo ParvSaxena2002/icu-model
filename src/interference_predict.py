@@ -1,70 +1,64 @@
-# src/interference_predict.py
-from pathlib import Path
+# inference/predict.py
+"""
+Load model artifact and provide a simple predict_from_dict(reading) function.
+
+Expected model artifact:
+- models/vitals_model_tuned.joblib (or other .joblib)
+- Joblib may be either the raw sklearn model or a dict {"model":..., "features":[...]}
+"""
+
 import os
 import joblib
+import pandas as pd
+from typing import Dict
 
-MODEL = None
-FEATURES = None
-MODEL_PATH = None
-
-def _models_dir() -> Path:
-    """
-    Detects the absolute path to the models directory.
-    Works even if src/ and ai-icu-monitoring/ are siblings.
-    """
-    # ../ai-icu-monitoring/models/
-    return (Path(__file__).resolve().parents[1] / "ai-icu-monitoring" / "models").resolve()
-
-def _find_artifact(models_dir: Path) -> Path:
-    # Allow override through environment variable
-    env_path = os.getenv("MODEL_PATH")
-    if env_path:
-        return Path(env_path).resolve()
-
-    for pattern in ("vitals_model.joblib", "icu_model.pkl", "*.joblib", "*.pkl"):
-        matches = list(models_dir.glob(pattern))
-        if matches:
-            return matches[0]
-    raise FileNotFoundError(f"No model artifact found in {models_dir}")
+# Candidate artifact paths (check these in order)
+ARTIFACT_PATHS = [
+    os.path.join("..", "models", "vitals_model_tuned.joblib"),
+    os.path.join("..", "models", "vitals_model.joblib"),
+    os.path.join("..", "models", "vitals_alert_model_v1.joblib"),
+]
 
 def load_model():
+    for p in ARTIFACT_PATHS:
+        if os.path.exists(p):
+            art = joblib.load(p)
+            if isinstance(art, dict) and "model" in art:
+                model = art["model"]
+                features = art.get("features", None)
+            else:
+                model = art
+                features = None
+            return model, features, p
+    raise FileNotFoundError("No model artifact found in ../models/. Put joblib file there.")
+
+# load on import so server boot is fast
+MODEL, FEATURES, MODEL_PATH = load_model()
+
+def predict_from_dict(reading: Dict[str, float]) -> Dict:
     """
-    Loads a model file (.joblib or .pkl) once, stores it globally.
+    reading: dict of feature_name -> numeric value
+    Returns: {"label": int, "score": float|None, "model_used": str}
     """
-    global MODEL, FEATURES, MODEL_PATH
-
-    models_dir = Path(os.getenv("MODEL_DIR") or _models_dir())
-    if not models_dir.exists():
-        raise FileNotFoundError(f"Models directory not found: {models_dir}")
-
-    artifact = _find_artifact(models_dir)
-    print(f"[INFO] Loading model from: {artifact}")
-    bundle = joblib.load(artifact)
-
-    if isinstance(bundle, dict):
-        MODEL = bundle.get("model", bundle)
-        FEATURES = bundle.get("features")
+    # determine feature order
+    if FEATURES is None:
+        # fallback: sort keys alphabetically (not ideal). Better to save features with model.
+        feat_list = sorted(reading.keys())
     else:
-        MODEL = bundle
-        FEATURES = None
+        feat_list = FEATURES
 
-    MODEL_PATH = str(artifact)
-    return MODEL, FEATURES, MODEL_PATH
+    # build dataframe in correct order
+    X = pd.DataFrame([[reading.get(f, None) for f in feat_list]], columns=feat_list)
+    if X.isnull().any(axis=None):
+        missing = X.columns[X.isnull().any()].tolist()
+        raise ValueError(f"Missing or NaN features: {missing}")
 
+    label = int(MODEL.predict(X)[0])
+    score = None
+    if hasattr(MODEL, "predict_proba"):
+        try:
+            score = float(MODEL.predict_proba(X)[0, 1])
+        except Exception:
+            score = None
 
-def predict_from_dict(data: dict):
-    """
-    Performs a simple inference using the loaded model.
-    """
-    global MODEL
-    if MODEL is None:
-        load_model()  # lazy load on first call
-
-    import numpy as np
-    x = np.array([[data["heart_rate"], data["bp_sys"], data["bp_dia"],
-                   data["spo2"], data["temp"], data["resp_rate"]]])
-
-    pred = MODEL.predict(x)
-    score = MODEL.predict_proba(x)[0, 1] if hasattr(MODEL, "predict_proba") else None
-
-    return {"label": int(pred[0]), "score": float(score) if score is not None else None, "model_used": MODEL_PATH}
+    return {"label": label, "score": score, "model_used": os.path.basename(MODEL_PATH)}
