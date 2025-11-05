@@ -1,0 +1,64 @@
+# inference/predict.py
+"""
+Load model artifact and provide a simple predict_from_dict(reading) function.
+
+Expected model artifact:
+- models/vitals_model_tuned.joblib (or other .joblib)
+- Joblib may be either the raw sklearn model or a dict {"model":..., "features":[...]}
+"""
+
+import os
+import joblib
+import pandas as pd
+from typing import Dict
+
+# Candidate artifact paths (check these in order)
+ARTIFACT_PATHS = [
+    os.path.join("..", "models", "vitals_model_tuned.joblib"),
+    os.path.join("..", "models", "vitals_model.joblib"),
+    os.path.join("..", "models", "vitals_alert_model_v1.joblib"),
+]
+
+def load_model():
+    for p in ARTIFACT_PATHS:
+        if os.path.exists(p):
+            art = joblib.load(p)
+            if isinstance(art, dict) and "model" in art:
+                model = art["model"]
+                features = art.get("features", None)
+            else:
+                model = art
+                features = None
+            return model, features, p
+    raise FileNotFoundError("No model artifact found in ../models/. Put joblib file there.")
+
+# load on import so server boot is fast
+MODEL, FEATURES, MODEL_PATH = load_model()
+
+def predict_from_dict(reading: Dict[str, float]) -> Dict:
+    """
+    reading: dict of feature_name -> numeric value
+    Returns: {"label": int, "score": float|None, "model_used": str}
+    """
+    # determine feature order
+    if FEATURES is None:
+        # fallback: sort keys alphabetically (not ideal). Better to save features with model.
+        feat_list = sorted(reading.keys())
+    else:
+        feat_list = FEATURES
+
+    # build dataframe in correct order
+    X = pd.DataFrame([[reading.get(f, None) for f in feat_list]], columns=feat_list)
+    if X.isnull().any(axis=None):
+        missing = X.columns[X.isnull().any()].tolist()
+        raise ValueError(f"Missing or NaN features: {missing}")
+
+    label = int(MODEL.predict(X)[0])
+    score = None
+    if hasattr(MODEL, "predict_proba"):
+        try:
+            score = float(MODEL.predict_proba(X)[0, 1])
+        except Exception:
+            score = None
+
+    return {"label": label, "score": score, "model_used": os.path.basename(MODEL_PATH)}
