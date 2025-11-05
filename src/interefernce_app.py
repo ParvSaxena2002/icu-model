@@ -1,7 +1,7 @@
 # inference/app.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from inference.predict import predict_from_dict
+from src.interefernce_predict import predict_from_dict
 import uvicorn
 
 app = FastAPI(title="ICU Vitals Inference")
